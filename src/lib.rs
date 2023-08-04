@@ -29,12 +29,19 @@ pub enum Op {
     Sub,
     Mul,
     Div,
+    Eq,
+    Neq,
+    Lt,
+    Le,
+    Gt,
+    Ge,
 }
 
 pub enum RegisterOrNum {
     Rdi,
     Rdx,
     Rax,
+    Al,
     Num(i32),
 }
 
@@ -46,6 +53,12 @@ pub enum Operation {
     Imul(RegisterOrNum, RegisterOrNum),
     Cqo,
     Idiv(RegisterOrNum),
+    Cmp(RegisterOrNum, RegisterOrNum),
+    Sete(RegisterOrNum),
+    Setne(RegisterOrNum),
+    Setl(RegisterOrNum),
+    Setle(RegisterOrNum),
+    Movzb(RegisterOrNum, RegisterOrNum),
 }
 
 fn get_operator(rule: Rule) -> Op {
@@ -54,6 +67,12 @@ fn get_operator(rule: Rule) -> Op {
         Rule::subop => Op::Sub,
         Rule::mulop => Op::Mul,
         Rule::divop => Op::Div,
+        Rule::eqop => Op::Eq,
+        Rule::nqop => Op::Neq,
+        Rule::ltop => Op::Lt,
+        Rule::leop => Op::Le,
+        Rule::gtop => Op::Gt,
+        Rule::geop => Op::Ge,
         _ => {
             panic!()
         }
@@ -62,6 +81,38 @@ fn get_operator(rule: Rule) -> Op {
 
 fn build_ast(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Error<Rule>> {
     match pair.as_rule() {
+        Rule::equation => {
+            let mut inner = pair.into_inner();
+            let mut ret = build_ast(inner.next().unwrap())?;
+            loop {
+                if let Some(op) = inner.next() {
+                    ret = Expr::BinOp {
+                        lhs: Box::new(ret),
+                        op: get_operator(op.as_rule()),
+                        rhs: Box::new(build_ast(inner.next().unwrap())?),
+                    }
+                } else {
+                    break;
+                }
+            }
+            Ok(ret)
+        }
+        Rule::relational => {
+            let mut inner = pair.into_inner();
+            let mut ret = build_ast(inner.next().unwrap())?;
+            loop {
+                if let Some(op) = inner.next() {
+                    ret = Expr::BinOp {
+                        lhs: Box::new(ret),
+                        op: get_operator(op.as_rule()),
+                        rhs: Box::new(build_ast(inner.next().unwrap())?),
+                    }
+                } else {
+                    break;
+                }
+            }
+            Ok(ret)
+        }
         Rule::expr => {
             let mut inner = pair.into_inner();
             let mut ret = build_ast(inner.next().unwrap())?;
@@ -111,7 +162,7 @@ fn build_ast(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Error<Rule>> {
             let content = inner.next().unwrap();
             match content.as_rule() {
                 Rule::num => Ok(Expr::Integer(content.as_str().parse::<i32>().unwrap())),
-                Rule::expr => build_ast(content),
+                Rule::equation => build_ast(content),
                 _ => {
                     return Err(Error::new_from_span(
                         ErrorVariant::CustomError {
@@ -157,7 +208,37 @@ impl Expr {
                     Op::Mul => out.push(Imul(Rax, Rdi)),
                     Op::Div => {
                         out.push(Cqo);
-                        out.push(Idiv(Rdi));
+                        out.push(Idiv(Rdi))
+                    }
+                    Op::Eq => {
+                        out.push(Cmp(Rax, Rdi));
+                        out.push(Sete(Al));
+                        out.push(Movzb(Rax, Al))
+                    }
+                    Op::Neq => {
+                        out.push(Cmp(Rax, Rdi));
+                        out.push(Setne(Al));
+                        out.push(Movzb(Rax, Al))
+                    }
+                    Op::Lt => {
+                        out.push(Cmp(Rax, Rdi));
+                        out.push(Setl(Al));
+                        out.push(Movzb(Rax, Al))
+                    }
+                    Op::Le => {
+                        out.push(Cmp(Rax, Rdi));
+                        out.push(Setle(Al));
+                        out.push(Movzb(Rax, Al))
+                    }
+                    Op::Gt => {
+                        out.push(Cmp(Rdi, Rax));
+                        out.push(Setl(Al));
+                        out.push(Movzb(Rax, Al))
+                    }
+                    Op::Ge => {
+                        out.push(Cmp(Rdi, Rax));
+                        out.push(Setle(Al));
+                        out.push(Movzb(Rax, Al))
                     }
                 }
                 out.push(Push(Rax));
@@ -177,6 +258,7 @@ impl fmt::Display for RegisterOrNum {
             Self::Rdi => write!(f, "rdi"),
             Self::Rdx => write!(f, "rdx"),
             Self::Rax => write!(f, "rax"),
+            Self::Al => write!(f, "al"),
             Self::Num(n) => write!(f, "{}", n),
         }
     }
@@ -192,6 +274,12 @@ impl fmt::Display for Operation {
             Self::Imul(r1, r2) => write!(f, "  imul {}, {}", r1, r2),
             Self::Cqo => write!(f, "  cqo"),
             Self::Idiv(r) => write!(f, "  idiv {}", r),
+            Self::Cmp(r1, r2) => write!(f, "  cmp {}, {}", r1, r2),
+            Self::Sete(r) => write!(f, "  sete {}", r),
+            Self::Setne(r) => write!(f, "  setne {}", r),
+            Self::Setl(r) => write!(f, "  setl {}", r),
+            Self::Setle(r) => write!(f, "  setle {}", r),
+            Self::Movzb(r1, r2) => write!(f, "  movzb {}, {}", r1, r2),
         }
     }
 }

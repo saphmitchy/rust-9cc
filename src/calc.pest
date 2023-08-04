@@ -1,9 +1,23 @@
-main = { SOI ~ expr ~ EOI}
-expr = {factor ~ ((addop ~ factor) | (subop ~ factor))* }
-factor = { unary ~ ( (mulop ~ unary) | (divop ~ unary) )* }
+main = { SOI ~ equation ~ EOI}
+equation = { relational ~ (equalop ~ relational)* }
+relational = {expr ~ (relop ~ expr)* }
+expr = {factor ~ (exprop ~ factor)* }
+factor = { unary ~ (factop ~ unary)* }
 unary = { (addop | subop)? ~ atom }
-atom = { num | "(" ~ expr ~ ")" }
+atom = { num | "(" ~ equation ~ ")" }
 num = @{ASCII_DIGIT+}
+
+equalop = _{ eqop | nqop }
+relop = _{ leop | ltop | geop | gtop }
+exprop = _{ addop | subop }
+factop = _{ mulop | divop }
+
+eqop = { "==" }
+nqop = { "!=" }
+ltop = { "<" }
+leop = { "<=" }
+gtop = { ">" }
+geop = { ">=" }
 addop = { "+" }
 subop = { "-" }
 mulop = { "*" }
