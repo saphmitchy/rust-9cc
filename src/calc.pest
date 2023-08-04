@@ -1,0 +1,10 @@
+expr = { factor ~ ((addop ~ factor) | (subop ~ factor))* }
+factor = { atom ~ ( (mulop ~ atom) | (divop ~ atom) )* }
+atom = { num | "(" ~ expr ~ ")" }
+num = @{ASCII_DIGIT+}
+addop = { "+" }
+subop = { "-" }
+mulop = { "*" }
+divop = { "/" }
+
+WHITESPACE = _{ " " }
