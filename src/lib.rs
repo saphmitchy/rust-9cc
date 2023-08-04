@@ -94,6 +94,18 @@ fn build_ast(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Error<Rule>> {
             }
             Ok(ret)
         }
+        Rule::unary => {
+            let mut inner = pair.into_inner();
+            let content = inner.next().unwrap();
+            match content.as_rule() {
+                Rule::atom => build_ast(content),
+                _ => Ok(Expr::BinOp {
+                    lhs: Box::new(Expr::Integer(0)),
+                    op: get_operator(content.as_rule()),
+                    rhs: Box::new(build_ast(inner.next().unwrap())?),
+                }),
+            }
+        }
         Rule::atom => {
             let mut inner = pair.into_inner();
             let content = inner.next().unwrap();
@@ -122,8 +134,8 @@ fn build_ast(pair: pest::iterators::Pair<Rule>) -> Result<Expr, Error<Rule>> {
 }
 
 pub fn source_to_ast(source: &str) -> Result<Expr, Error<Rule>> {
-    let pair = CalcParser::parse(Rule::expr, source)?.next().unwrap();
-    build_ast(pair)
+    let pair = CalcParser::parse(Rule::main, source)?.next().unwrap();
+    build_ast(pair.into_inner().next().unwrap())
 }
 
 impl Expr {

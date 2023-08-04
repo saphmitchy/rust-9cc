@@ -1,5 +1,7 @@
-expr = { factor ~ ((addop ~ factor) | (subop ~ factor))* }
-factor = { atom ~ ( (mulop ~ atom) | (divop ~ atom) )* }
+main = { SOI ~ expr ~ EOI}
+expr = {factor ~ ((addop ~ factor) | (subop ~ factor))* }
+factor = { unary ~ ( (mulop ~ unary) | (divop ~ unary) )* }
+unary = { (addop | subop)? ~ atom }
 atom = { num | "(" ~ expr ~ ")" }
 num = @{ASCII_DIGIT+}
 addop = { "+" }
