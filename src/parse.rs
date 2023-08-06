@@ -22,6 +22,9 @@ pub enum Expr {
         op: Op,
         rhs: Box<Expr>,
     },
+    Return {
+        expr: Box<Expr>,
+    },
 }
 
 #[derive(Debug, PartialEq)]
@@ -186,6 +189,12 @@ fn build_ast(
                 }
             }
         }
+        Rule::res => {
+            let mut inner = pair.into_inner();
+            let content = inner.next().unwrap();
+            let expr = Box::new(build_ast(content, env)?);
+            Ok(Expr::Return { expr })
+        }
         _ => {
             // println!("{:?}", pair.as_rule());
             return Err(Error::new_from_span(
@@ -292,6 +301,13 @@ impl Expr {
                     Op::Assign => panic!(),
                 }
                 out.push(Push(Rax));
+            }
+            Expr::Return { expr } => {
+                expr.to_assembly_inner(out);
+                out.push(Pop(Rax));
+                out.push(Mov(Rsp, Rbp));
+                out.push(Pop(Rbp));
+                out.push(Ret);
             }
         }
     }

@@ -8,6 +8,7 @@ pub enum RegisterOrNum {
     Rdx,
     Rax,
     Rbp,
+    Rsp,
     Al,
     Num(i32),
 }
@@ -29,6 +30,7 @@ pub enum Operation {
     Load(RegisterOrNum, RegisterOrNum),
     Store(RegisterOrNum, RegisterOrNum),
     Movzb(RegisterOrNum, RegisterOrNum),
+    Ret,
 }
 
 impl fmt::Display for RegisterOrNum {
@@ -38,6 +40,7 @@ impl fmt::Display for RegisterOrNum {
             Self::Rdx => write!(f, "rdx"),
             Self::Rax => write!(f, "rax"),
             Self::Rbp => write!(f, "rbp"),
+            Self::Rsp => write!(f, "rsp"),
             Self::Al => write!(f, "al"),
             Self::Num(n) => write!(f, "{}", n),
         }
@@ -63,6 +66,7 @@ impl fmt::Display for Operation {
             Self::Load(r1, r2) => write!(f, "  mov {}, [{}]", r1, r2),
             Self::Store(r1, r2) => write!(f, "  mov [{}], {}", r1, r2),
             Self::Movzb(r1, r2) => write!(f, "  movzb {}, {}", r1, r2),
+            Self::Ret => write!(f, "  ret"),
         }
     }
 }
