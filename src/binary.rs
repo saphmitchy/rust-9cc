@@ -7,6 +7,7 @@ pub enum RegisterOrNum {
     Rdi,
     Rdx,
     Rax,
+    Rbp,
     Al,
     Num(i32),
 }
@@ -24,6 +25,9 @@ pub enum Operation {
     Setne(RegisterOrNum),
     Setl(RegisterOrNum),
     Setle(RegisterOrNum),
+    Mov(RegisterOrNum, RegisterOrNum),
+    Load(RegisterOrNum, RegisterOrNum),
+    Store(RegisterOrNum, RegisterOrNum),
     Movzb(RegisterOrNum, RegisterOrNum),
 }
 
@@ -33,6 +37,7 @@ impl fmt::Display for RegisterOrNum {
             Self::Rdi => write!(f, "rdi"),
             Self::Rdx => write!(f, "rdx"),
             Self::Rax => write!(f, "rax"),
+            Self::Rbp => write!(f, "rbp"),
             Self::Al => write!(f, "al"),
             Self::Num(n) => write!(f, "{}", n),
         }
@@ -54,6 +59,9 @@ impl fmt::Display for Operation {
             Self::Setne(r) => write!(f, "  setne {}", r),
             Self::Setl(r) => write!(f, "  setl {}", r),
             Self::Setle(r) => write!(f, "  setle {}", r),
+            Self::Mov(r1, r2) => write!(f, "  mov {}, {}", r1, r2),
+            Self::Load(r1, r2) => write!(f, "  mov {}, [{}]", r1, r2),
+            Self::Store(r1, r2) => write!(f, "  mov [{}], {}", r1, r2),
             Self::Movzb(r1, r2) => write!(f, "  movzb {}, {}", r1, r2),
         }
     }
@@ -68,9 +76,13 @@ pub fn elf_writer(path: &str, oprations: &Vec<Operation>) -> std::io::Result<()>
     file.write_all(b".intel_syntax noprefix\n")?;
     file.write_all(b".globl main\n")?;
     file.write_all(b"main:\n")?;
+    file.write_all(b"  push rbp\n")?;
+    file.write_all(b"  mov rbp, rsp\n")?;
+    file.write_all(b"  sub rsp, 208\n")?;
     for i in oprations {
         write!(file, "{}\n", i)?;
     }
-    file.write_all(b"  pop rax\n")?;
+    file.write_all(b"  mov rsp, rbp\n")?;
+    file.write_all(b"  pop rbp\n")?;
     file.write_all(b"  ret\n")
 }

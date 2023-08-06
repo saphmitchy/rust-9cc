@@ -1,17 +1,22 @@
-main = { SOI ~ equation ~ EOI}
+main = { SOI ~ stmt* ~ EOI}
+stmt = _{ assign ~ semiclon }
+assign = { equation ~ (asnop ~ assign)? }
 equation = { relational ~ (equalop ~ relational)* }
 relational = {expr ~ (relop ~ expr)* }
 expr = {factor ~ (exprop ~ factor)* }
 factor = { unary ~ (factop ~ unary)* }
 unary = { (addop | subop)? ~ atom }
-atom = { num | "(" ~ equation ~ ")" }
+atom = { ident | num | "(" ~ assign ~ ")" }
 num = @{ASCII_DIGIT+}
+ident = @{ ASCII_ALPHA ~ (ASCII_ALPHA | ASCII_DIGIT)* }
 
 equalop = _{ eqop | nqop }
 relop = _{ leop | ltop | geop | gtop }
 exprop = _{ addop | subop }
 factop = _{ mulop | divop }
 
+semiclon = _{ ";" }
+asnop = { "=" }
 eqop = { "==" }
 nqop = { "!=" }
 ltop = { "<" }
@@ -23,4 +28,4 @@ subop = { "-" }
 mulop = { "*" }
 divop = { "/" }
 
-WHITESPACE = _{ " " }
+WHITESPACE = _{ " " | NEWLINE }
