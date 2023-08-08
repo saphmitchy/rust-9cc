@@ -1,6 +1,6 @@
 res = { "return" ~ assign }
 main = { SOI ~ stmt* ~ EOI}
-stmt = _{ assign ~ semiclon | res ~ semiclon}
+stmt = _{ assign ~ semiclon | res ~ semiclon | ifstmt }
 assign = { equation ~ (asnop ~ assign)? }
 equation = { relational ~ (equalop ~ relational)* }
 relational = {expr ~ (relop ~ expr)* }
@@ -10,6 +10,8 @@ unary = { (addop | subop)? ~ atom }
 atom = { ident | num | "(" ~ assign ~ ")" }
 num = @{ASCII_DIGIT+}
 ident = @{ !keywords ~ ASCII_ALPHA ~ (ASCII_ALPHA | ASCII_DIGIT)* }
+ifstmt = { "if" ~ "(" ~ assign? ~ ")" ~ stmt ~ ("else" ~ stmt)? }
+// whilestmt = { "while" ~ "(" ~ assign ~ ")" ~ stmt }
 
 equalop = _{ eqop | nqop }
 relop = _{ leop | ltop | geop | gtop }
@@ -28,6 +30,6 @@ addop = { "+" }
 subop = { "-" }
 mulop = { "*" }
 divop = { "/" }
-keywords = { "return" }
+keywords = { "return" | "if" | "else" | "while" | "for" }
 
 WHITESPACE = _{ " " | NEWLINE }

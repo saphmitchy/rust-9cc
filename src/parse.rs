@@ -25,6 +25,11 @@ pub enum Expr {
     Return {
         expr: Box<Expr>,
     },
+    If {
+        cond: Box<Expr>,
+        t_branch: Box<Expr>,
+        f_branch: Box<Option<Expr>>,
+    },
 }
 
 #[derive(Debug, PartialEq)]
@@ -61,20 +66,20 @@ fn get_operator(rule: Rule) -> Op {
     }
 }
 
-fn build_ast(
+fn build_ast_from_expr(
     pair: pest::iterators::Pair<Rule>,
     env: &mut HashMap<String, usize>,
 ) -> Result<Expr, Error<Rule>> {
     match pair.as_rule() {
         Rule::assign => {
             let mut inner = pair.into_inner();
-            let mut ret = build_ast(inner.next().unwrap(), env)?;
+            let mut ret = build_ast_from_expr(inner.next().unwrap(), env)?;
             loop {
                 if let Some(op) = inner.next() {
                     ret = Expr::BinOp {
                         lhs: Box::new(ret),
                         op: get_operator(op.as_rule()),
-                        rhs: Box::new(build_ast(inner.next().unwrap(), env)?),
+                        rhs: Box::new(build_ast_from_expr(inner.next().unwrap(), env)?),
                     }
                 } else {
                     break;
@@ -84,13 +89,13 @@ fn build_ast(
         }
         Rule::equation => {
             let mut inner = pair.into_inner();
-            let mut ret = build_ast(inner.next().unwrap(), env)?;
+            let mut ret = build_ast_from_expr(inner.next().unwrap(), env)?;
             loop {
                 if let Some(op) = inner.next() {
                     ret = Expr::BinOp {
                         lhs: Box::new(ret),
                         op: get_operator(op.as_rule()),
-                        rhs: Box::new(build_ast(inner.next().unwrap(), env)?),
+                        rhs: Box::new(build_ast_from_expr(inner.next().unwrap(), env)?),
                     }
                 } else {
                     break;
@@ -100,13 +105,13 @@ fn build_ast(
         }
         Rule::relational => {
             let mut inner = pair.into_inner();
-            let mut ret = build_ast(inner.next().unwrap(), env)?;
+            let mut ret = build_ast_from_expr(inner.next().unwrap(), env)?;
             loop {
                 if let Some(op) = inner.next() {
                     ret = Expr::BinOp {
                         lhs: Box::new(ret),
                         op: get_operator(op.as_rule()),
-                        rhs: Box::new(build_ast(inner.next().unwrap(), env)?),
+                        rhs: Box::new(build_ast_from_expr(inner.next().unwrap(), env)?),
                     }
                 } else {
                     break;
@@ -116,13 +121,13 @@ fn build_ast(
         }
         Rule::expr => {
             let mut inner = pair.into_inner();
-            let mut ret = build_ast(inner.next().unwrap(), env)?;
+            let mut ret = build_ast_from_expr(inner.next().unwrap(), env)?;
             loop {
                 if let Some(op) = inner.next() {
                     ret = Expr::BinOp {
                         lhs: Box::new(ret),
                         op: get_operator(op.as_rule()),
-                        rhs: Box::new(build_ast(inner.next().unwrap(), env)?),
+                        rhs: Box::new(build_ast_from_expr(inner.next().unwrap(), env)?),
                     }
                 } else {
                     break;
@@ -132,13 +137,13 @@ fn build_ast(
         }
         Rule::factor => {
             let mut inner = pair.into_inner();
-            let mut ret = build_ast(inner.next().unwrap(), env)?;
+            let mut ret = build_ast_from_expr(inner.next().unwrap(), env)?;
             loop {
                 if let Some(op) = inner.next() {
                     ret = Expr::BinOp {
                         lhs: Box::new(ret),
                         op: get_operator(op.as_rule()),
-                        rhs: Box::new(build_ast(inner.next().unwrap(), env)?),
+                        rhs: Box::new(build_ast_from_expr(inner.next().unwrap(), env)?),
                     }
                 } else {
                     break;
@@ -150,11 +155,11 @@ fn build_ast(
             let mut inner = pair.into_inner();
             let content = inner.next().unwrap();
             match content.as_rule() {
-                Rule::atom => build_ast(content, env),
+                Rule::atom => build_ast_from_expr(content, env),
                 _ => Ok(Expr::BinOp {
                     lhs: Box::new(Expr::Integer(0)),
                     op: get_operator(content.as_rule()),
-                    rhs: Box::new(build_ast(inner.next().unwrap(), env)?),
+                    rhs: Box::new(build_ast_from_expr(inner.next().unwrap(), env)?),
                 }),
             }
         }
@@ -178,7 +183,7 @@ fn build_ast(
                     }
                 }
                 Rule::num => Ok(Expr::Integer(content.as_str().parse::<i32>().unwrap())),
-                Rule::assign => build_ast(content, env),
+                Rule::assign => build_ast_from_expr(content, env),
                 _ => {
                     return Err(Error::new_from_span(
                         ErrorVariant::CustomError {
@@ -192,8 +197,22 @@ fn build_ast(
         Rule::res => {
             let mut inner = pair.into_inner();
             let content = inner.next().unwrap();
-            let expr = Box::new(build_ast(content, env)?);
+            let expr = Box::new(build_ast_from_expr(content, env)?);
             Ok(Expr::Return { expr })
+        }
+        Rule::ifstmt => {
+            let mut inner = pair.into_inner();
+            let cond = build_ast_from_expr(inner.next().unwrap(), env)?;
+            let t_branch = build_ast_from_expr(inner.next().unwrap(), env)?;
+            let f_branch = match inner.next() {
+                Some(e) => Some(build_ast_from_expr(e, env)?),
+                None => None,
+            };
+            Ok(Expr::If {
+                cond: Box::new(cond),
+                t_branch: Box::new(t_branch),
+                f_branch: Box::new(f_branch),
+            })
         }
         _ => {
             // println!("{:?}", pair.as_rule());
@@ -213,7 +232,7 @@ pub fn source_to_ast(source: &str) -> Result<Vec<Expr>, Error<Rule>> {
     let mut v = pair
         .into_inner()
         .into_iter()
-        .map(|x| build_ast(x, &mut env))
+        .map(|x| build_ast_from_expr(x, &mut env))
         .collect::<Vec<_>>();
     v.pop();
     v.into_iter().collect::<Result<_, _>>()
@@ -233,7 +252,7 @@ impl Expr {
         }
     }
 
-    fn to_assembly_inner(&self, out: &mut Vec<Operation>) -> () {
+    fn to_assembly_inner(&self, out: &mut Vec<Operation>, label_counter: &mut usize) -> () {
         use Operation::*;
         use RegisterOrNum::*;
         match self {
@@ -249,15 +268,15 @@ impl Expr {
             Expr::BinOp { lhs, op, rhs } => {
                 if *op == Op::Assign {
                     lhs.gen_lval(out);
-                    rhs.to_assembly_inner(out);
+                    rhs.to_assembly_inner(out, label_counter);
                     out.push(Pop(Rdi));
                     out.push(Pop(Rax));
                     out.push(Store(Rax, Rdi));
                     out.push(Push(Rdi));
                     return;
                 }
-                lhs.to_assembly_inner(out);
-                rhs.to_assembly_inner(out);
+                lhs.to_assembly_inner(out, label_counter);
+                rhs.to_assembly_inner(out, label_counter);
                 out.push(Pop(Rdi));
                 out.push(Pop(Rax));
                 match op {
@@ -303,17 +322,41 @@ impl Expr {
                 out.push(Push(Rax));
             }
             Expr::Return { expr } => {
-                expr.to_assembly_inner(out);
+                expr.to_assembly_inner(out, label_counter);
                 out.push(Pop(Rax));
                 out.push(Mov(Rsp, Rbp));
                 out.push(Pop(Rbp));
                 out.push(Ret);
             }
+            Expr::If {
+                cond,
+                t_branch,
+                f_branch,
+            } => {
+                cond.to_assembly_inner(out, label_counter);
+                out.push(Pop(Rax));
+                out.push(Cmp(Rax, Num(0)));
+                let crr_label = *label_counter + 1;
+                *label_counter = *label_counter + 1;
+                if let Some(f_branch) = &**f_branch {
+                    out.push(Je("else", crr_label));
+                    t_branch.to_assembly_inner(out, label_counter);
+                    out.push(Jmp("end", crr_label));
+                    out.push(Label("else", crr_label));
+                    f_branch.to_assembly_inner(out, label_counter);
+                    out.push(Label("end", crr_label));
+                } else {
+                    out.push(Je("end", crr_label));
+                    t_branch.to_assembly_inner(out, label_counter);
+                    out.push(Label("end", crr_label));
+                }
+            }
         }
     }
     pub fn to_assembly(&self) -> Vec<Operation> {
         let mut out = vec![];
-        self.to_assembly_inner(&mut out);
+        let mut label_counter = 0;
+        self.to_assembly_inner(&mut out, &mut label_counter);
         out.push(Operation::Pop(RegisterOrNum::Rax));
         out
     }

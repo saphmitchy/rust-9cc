@@ -31,6 +31,9 @@ pub enum Operation {
     Store(RegisterOrNum, RegisterOrNum),
     Movzb(RegisterOrNum, RegisterOrNum),
     Ret,
+    Je(&'static str, usize),
+    Jmp(&'static str, usize),
+    Label(&'static str, usize),
 }
 
 impl fmt::Display for RegisterOrNum {
@@ -67,6 +70,9 @@ impl fmt::Display for Operation {
             Self::Store(r1, r2) => write!(f, "  mov [{}], {}", r1, r2),
             Self::Movzb(r1, r2) => write!(f, "  movzb {}, {}", r1, r2),
             Self::Ret => write!(f, "  ret"),
+            Self::Je(s, n) => write!(f, "  je .L{}{}", s, n),
+            Self::Jmp(s, n) => write!(f, "  jmp .L{}{}", s, n),
+            Self::Label(s, n) => write!(f, ".L{}{}:", s, n),
         }
     }
 }

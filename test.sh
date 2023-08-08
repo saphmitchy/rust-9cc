@@ -59,6 +59,10 @@ assert 13 "return 10 + 3;"
 assert 5 "1; 2; return 5;"
 assert 5 "1; return 5; 2;"
 assert 2 "a = 1; return a + 1;"
+assert 7 "if(1 + 2 == 3) return 7; return 5;"
+assert 5 "if(1 + 2 < 3) return 7; return 5;"
+assert 12 "a = 9; if(a == 9) a = a + 3; else a = a + 1; return a;"
+assert 10 "a = 9; if(a != 9) a = a + 3; else a = a + 1; return a;"
 
 
 echo OK
