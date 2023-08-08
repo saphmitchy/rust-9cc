@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
+#[derive(Clone)]
 pub enum RegisterOrNum {
     Rdi,
     Rdx,
@@ -10,6 +11,10 @@ pub enum RegisterOrNum {
     Rbp,
     Rsp,
     Al,
+    Rsi,
+    Rcx,
+    R8,
+    R9,
     Num(i32),
 }
 
@@ -34,6 +39,7 @@ pub enum Operation {
     Je(&'static str, usize),
     Jmp(&'static str, usize),
     Label(&'static str, usize),
+    Call(String),
 }
 
 impl fmt::Display for RegisterOrNum {
@@ -45,6 +51,10 @@ impl fmt::Display for RegisterOrNum {
             Self::Rbp => write!(f, "rbp"),
             Self::Rsp => write!(f, "rsp"),
             Self::Al => write!(f, "al"),
+            Self::Rsi => write!(f, "rsi"),
+            Self::Rcx => write!(f, "rcx"),
+            Self::R8 => write!(f, "r8"),
+            Self::R9 => write!(f, "r9"),
             Self::Num(n) => write!(f, "{}", n),
         }
     }
@@ -73,6 +83,7 @@ impl fmt::Display for Operation {
             Self::Je(s, n) => write!(f, "  je .L{}{}", s, n),
             Self::Jmp(s, n) => write!(f, "  jmp .L{}{}", s, n),
             Self::Label(s, n) => write!(f, ".L{}{}:", s, n),
+            Self::Call(name) => write!(f, "  call {}", name),
         }
     }
 }

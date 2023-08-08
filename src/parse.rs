@@ -41,6 +41,10 @@ pub enum Expr {
         content: Box<Expr>,
     },
     Block(Vec<Expr>),
+    FunCall {
+        name: String,
+        args: Vec<Expr>,
+    },
 }
 
 #[derive(Debug, PartialEq)]
@@ -195,6 +199,22 @@ fn build_ast_from_expr(
                 }
                 Rule::num => Ok(Expr::Integer(content.as_str().parse::<i32>().unwrap())),
                 Rule::assign => build_ast_from_expr(content, env),
+                Rule::funccall => {
+                    let mut inner = content.into_inner();
+                    let name = inner.next().unwrap();
+                    assert_eq!(name.as_rule(), Rule::ident);
+                    let args = if let Some(arg) = inner.next() {
+                        arg.into_inner()
+                            .map(|x| build_ast_from_expr(x, env))
+                            .collect::<Result<_, _>>()?
+                    } else {
+                        vec![]
+                    };
+                    Ok(Expr::FunCall {
+                        name: name.as_str().into(),
+                        args,
+                    })
+                }
                 _ => {
                     return Err(Error::new_from_span(
                         ErrorVariant::CustomError {
@@ -456,6 +476,20 @@ impl Expr {
                 }
                 out.push(Jmp("begin", crr_label));
                 out.push(Label("end", crr_label));
+            }
+            Expr::FunCall { name , args } => {
+                for i in args {
+                    i.to_assembly_inner(out, label_counter);
+                }
+                let args_num = args.len();
+                assert!(args_num <= 6, "関数の引数は6つまででです。");
+                out.push(Mov(Rax, Num(args_num as i32)));
+                let arg_regi = vec![Rdi, Rsi, Rdx, Rcx, R8, R9];
+                for i in (0..args_num).rev() {
+                    out.push(Pop(arg_regi[i].clone()));
+                }
+                out.push(Call(name.clone()));
+                out.push(Push(Rax));
             }
         }
     }

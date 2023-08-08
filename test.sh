@@ -4,7 +4,7 @@ assert() {
   input="$2"
 
   target/debug/rust-9cc "$input" tmp.s
-  cc -o tmp tmp.s
+  cc -o tmp tmp.s test.o
   ./tmp
   actual="$?"
 
@@ -15,6 +15,8 @@ assert() {
     exit 1
   fi
 }
+
+gcc -c test.c
 
 assert 0 "return 0;"
 assert 42 "return 42;"
@@ -71,5 +73,8 @@ assert 11 "a = 1; while (a < 10) { if(a + 1 == 10) { a = a + 2; } else { a = a +
 assert 120 "a = 1; for(i = 1; i <= 5; i = i + 1) a = a * i; return a;"
 assert 240 "a = 2; i = 1; for(; i <= 5;) { a = a * i;  i = i + 1; } return a;"
 assert 3 "for(;;) { return 3; }"
+assert 42 "return test();"
+assert 14 "hoge = test2(3, 4); return 2 * hoge;"
+assert 21 "a = 2; hoge = test6(3 + 1, a, 3 * 1 - 2, 0, test2(3, 9), a); return hoge;"
 
 echo OK

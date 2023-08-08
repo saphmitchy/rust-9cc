@@ -7,7 +7,7 @@ relational = {expr ~ (relop ~ expr)* }
 expr = {factor ~ (exprop ~ factor)* }
 factor = { unary ~ (factop ~ unary)* }
 unary = { (addop | subop)? ~ atom }
-atom = { ident | num | "(" ~ assign ~ ")" }
+atom = { funccall | ident | num | "(" ~ assign ~ ")" }
 num = @{ASCII_DIGIT+}
 ident = @{ !keywords ~ ASCII_ALPHA ~ (ASCII_ALPHA | ASCII_DIGIT)* }
 ifstmt = { "if" ~ "(" ~ assign ~ ")" ~ stmt ~ ("else" ~ stmt)? }
@@ -15,6 +15,8 @@ block = { "{" ~ stmt* ~ "}" }
 whilestmt = { "while" ~ "(" ~ assign ~ ")" ~ stmt }
 forstmt = { "for" ~ forcond ~ stmt }
 forcond = { "(" ~ assign? ~  forsep ~ assign? ~  forsep ~ assign? ~ ")" }
+funccall = { ident ~ "(" ~ funcargs? ~ ")" }
+funcargs = { assign ~ ( comma ~ assign )* }
 
 equalop = _{ eqop | nqop }
 relop = _{ leop | ltop | geop | gtop }
@@ -34,6 +36,7 @@ addop = { "+" }
 subop = { "-" }
 mulop = { "*" }
 divop = { "/" }
+comma = _{ "," }
 keywords = { "return" | "if" | "else" | "while" | "for" }
 
 WHITESPACE = _{ " " | NEWLINE }
