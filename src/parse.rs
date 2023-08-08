@@ -34,6 +34,12 @@ pub enum Expr {
         cond: Box<Expr>,
         content: Box<Expr>,
     },
+    For {
+        init: Option<Box<Expr>>,
+        cond: Option<Box<Expr>>,
+        tail: Option<Box<Expr>>,
+        content: Box<Expr>,
+    },
     Block(Vec<Expr>),
 }
 
@@ -219,11 +225,51 @@ fn build_ast_from_expr(
                 f_branch: Box::new(f_branch),
             })
         }
-        Rule::whilestmt  => {
+        Rule::whilestmt => {
             let mut inner = pair.into_inner();
             let cond = build_ast_from_expr(inner.next().unwrap(), env)?;
             let content: Expr = build_ast_from_expr(inner.next().unwrap(), env)?;
-            Ok(Expr::While { cond: Box::new(cond), content: Box::new(content) })
+            Ok(Expr::While {
+                cond: Box::new(cond),
+                content: Box::new(content),
+            })
+        }
+        Rule::forstmt => {
+            let mut inner = pair.into_inner();
+            let forcond = inner.next().unwrap();
+            assert_eq!(forcond.as_rule(), Rule::forcond);
+            let mut forcond = forcond.into_inner();
+            let init = {
+                let tmp = forcond.next().unwrap();
+                if tmp.as_rule() == Rule::forsep {
+                    None
+                } else {
+                    assert_eq!(forcond.next().unwrap().as_rule(), Rule::forsep);
+                    Some(Box::new(build_ast_from_expr(tmp, env)?))
+                }
+            };
+            let cond = {
+                let tmp = forcond.next().unwrap();
+                if tmp.as_rule() == Rule::forsep {
+                    None
+                } else {
+                    assert_eq!(forcond.next().unwrap().as_rule(), Rule::forsep);
+                    Some(Box::new(build_ast_from_expr(tmp, env)?))
+                }
+            };
+            let tail = if let Some(tmp) = forcond.next() {
+                Some(Box::new(build_ast_from_expr(tmp, env)?))
+            } else {
+                None
+            };
+            let tmp = inner.next().unwrap();
+            let content = build_ast_from_expr(tmp, env)?;
+            Ok(Expr::For {
+                init,
+                cond,
+                tail,
+                content: Box::new(content),
+            })
         }
         Rule::block => Ok(Expr::Block(
             pair.into_inner()
@@ -382,6 +428,31 @@ impl Expr {
                 out.push(Cmp(Rax, Num(0)));
                 out.push(Je("end", crr_label));
                 content.to_assembly_inner(out, label_counter);
+                out.push(Jmp("begin", crr_label));
+                out.push(Label("end", crr_label));
+            }
+            Expr::For {
+                init,
+                cond,
+                tail,
+                content,
+            } => {
+                let crr_label = *label_counter + 1;
+                *label_counter = *label_counter + 1;
+                if let Some(init) = init {
+                    init.to_assembly_inner(out, label_counter);
+                }
+                out.push(Label("begin", crr_label));
+                if let Some(cond) = cond {
+                    cond.to_assembly_inner(out, label_counter);
+                    out.push(Pop(Rax));
+                    out.push(Cmp(Rax, Num(0)));
+                    out.push(Je("end", crr_label));
+                }
+                content.to_assembly_inner(out, label_counter);
+                if let Some(tail) = tail {
+                    tail.to_assembly_inner(out, label_counter);
+                }
                 out.push(Jmp("begin", crr_label));
                 out.push(Label("end", crr_label));
             }

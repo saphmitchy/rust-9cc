@@ -68,5 +68,8 @@ assert 13 "a = 9; if(a == 9) { a = a + 3; a = a + 1; } return a;"
 assert 9 "a = 9; if(a != 9) { a = a + 3; a = a + 1; } return a;"
 assert 10 "a = 1; while (a < 10) { a = a + 1; } return a;"
 assert 11 "a = 1; while (a < 10) { if(a + 1 == 10) { a = a + 2; } else { a = a + 1; } } return a;"
+assert 120 "a = 1; for(i = 1; i <= 5; i = i + 1) a = a * i; return a;"
+assert 240 "a = 2; i = 1; for(; i <= 5;) { a = a * i;  i = i + 1; } return a;"
+assert 3 "for(;;) { return 3; }"
 
 echo OK
