@@ -30,6 +30,7 @@ pub enum Expr {
         t_branch: Box<Expr>,
         f_branch: Box<Option<Expr>>,
     },
+    Block(Vec<Expr>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -214,6 +215,12 @@ fn build_ast_from_expr(
                 f_branch: Box::new(f_branch),
             })
         }
+        Rule::block => Ok(Expr::Block(
+            pair.into_inner()
+                .into_iter()
+                .map(|x| build_ast_from_expr(x, env))
+                .collect::<Result<_, _>>()?,
+        )),
         _ => {
             // println!("{:?}", pair.as_rule());
             return Err(Error::new_from_span(
@@ -349,6 +356,11 @@ impl Expr {
                     out.push(Je("end", crr_label));
                     t_branch.to_assembly_inner(out, label_counter);
                     out.push(Label("end", crr_label));
+                }
+            }
+            Expr::Block(v) => {
+                for i in v {
+                    i.to_assembly_inner(out, label_counter);
                 }
             }
         }
