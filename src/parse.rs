@@ -417,6 +417,7 @@ impl Expr {
             Expr::Block(v) => {
                 for i in v {
                     i.to_assembly_inner(out, label_counter);
+                    out.push(Pop(Rax));
                 }
             }
             Expr::While { cond, content } => {
