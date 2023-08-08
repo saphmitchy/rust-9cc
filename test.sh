@@ -66,6 +66,7 @@ assert 10 "a = 9; if(a != 9) a = a + 3; else a = a + 1; return a;"
 assert 7 "ab = 3; {cd = ab + 3; ab = cd + 1; } return ab;"
 assert 13 "a = 9; if(a == 9) { a = a + 3; a = a + 1; } return a;"
 assert 9 "a = 9; if(a != 9) { a = a + 3; a = a + 1; } return a;"
-
+assert 10 "a = 1; while (a < 10) { a = a + 1; } return a;"
+assert 11 "a = 1; while (a < 10) { if(a + 1 == 10) { a = a + 2; } else { a = a + 1; } } return a;"
 
 echo OK
