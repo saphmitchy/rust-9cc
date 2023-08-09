@@ -9,3 +9,7 @@ int test2(int a, int b) { return a + b; }
 int test6(int a, int b, int c, int d, int e, int f) {
     return a + b + c + d + e + f;
 }
+
+int print(int n) {
+    printf("%d\n", n);
+}

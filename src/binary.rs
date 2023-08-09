@@ -39,6 +39,7 @@ pub enum Operation {
     Je(&'static str, usize),
     Jmp(&'static str, usize),
     Label(&'static str, usize),
+    Func(String),
     Call(String),
 }
 
@@ -83,6 +84,7 @@ impl fmt::Display for Operation {
             Self::Je(s, n) => write!(f, "  je .L{}{}", s, n),
             Self::Jmp(s, n) => write!(f, "  jmp .L{}{}", s, n),
             Self::Label(s, n) => write!(f, ".L{}{}:", s, n),
+            Self::Func(n) => write!(f, "{}:", n),
             Self::Call(name) => write!(f, "  call {}", name),
         }
     }
@@ -96,14 +98,8 @@ pub fn elf_writer(path: &str, oprations: &Vec<Operation>) -> std::io::Result<()>
     };
     file.write_all(b".intel_syntax noprefix\n")?;
     file.write_all(b".globl main\n")?;
-    file.write_all(b"main:\n")?;
-    file.write_all(b"  push rbp\n")?;
-    file.write_all(b"  mov rbp, rsp\n")?;
-    file.write_all(b"  sub rsp, 208\n")?;
     for i in oprations {
         write!(file, "{}\n", i)?;
     }
-    file.write_all(b"  mov rsp, rbp\n")?;
-    file.write_all(b"  pop rbp\n")?;
-    file.write_all(b"  ret\n")
+    file.write_all(b"\n")
 }

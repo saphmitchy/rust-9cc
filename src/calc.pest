@@ -1,5 +1,5 @@
 res = { "return" ~ assign }
-main = { SOI ~ stmt* ~ EOI}
+main = { SOI ~ funcdef* ~ EOI}
 stmt = _{ assign ~ semiclon | res ~ semiclon | ifstmt | block | whilestmt | forstmt }
 assign = { equation ~ (asnop ~ assign)? }
 equation = { relational ~ (equalop ~ relational)* }
@@ -17,6 +17,9 @@ forstmt = { "for" ~ forcond ~ stmt }
 forcond = { "(" ~ assign? ~  forsep ~ assign? ~  forsep ~ assign? ~ ")" }
 funccall = { ident ~ "(" ~ funcargs? ~ ")" }
 funcargs = { assign ~ ( comma ~ assign )* }
+funcdef = { ident ~ "(" ~  funcindets? ~  ")" ~ funcbody }
+funcindets = { ident ~ ( comma ~ ident)* }
+funcbody = { "{" ~ stmt* ~ "}" }
 
 equalop = _{ eqop | nqop }
 relop = _{ leop | ltop | geop | gtop }

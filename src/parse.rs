@@ -47,6 +47,13 @@ pub enum Expr {
     },
 }
 
+pub struct FuncDef {
+    name: String,
+    args: Vec<String>,
+    body: Expr,
+    local_area: usize,
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Op {
     Add,
@@ -298,7 +305,6 @@ fn build_ast_from_expr(
                 .collect::<Result<_, _>>()?,
         )),
         _ => {
-            // println!("{:?}", pair.as_rule());
             return Err(Error::new_from_span(
                 ErrorVariant::CustomError {
                     message: String::from("innerError"),
@@ -309,15 +315,53 @@ fn build_ast_from_expr(
     }
 }
 
-pub fn source_to_ast(source: &str) -> Result<Vec<Expr>, Error<Rule>> {
-    let pair = CalcParser::parse(Rule::main, source)?.next().unwrap();
+fn biuld_ast_from_funcdef(pair: pest::iterators::Pair<Rule>) -> Result<FuncDef, Error<Rule>> {
+    let mut inner = pair.into_inner();
+    let name = inner.next().unwrap();
+    assert_eq!(name.as_rule(), Rule::ident);
+    let name: String = name.as_str().into();
+    let mut tmp = inner.next().unwrap();
+    let args = if tmp.as_rule() == Rule::funcindets {
+        let a = tmp.into_inner().map(|x| String::from(x.as_str())).collect();
+        tmp = inner.next().unwrap();
+        a
+    } else {
+        vec![]
+    };
+    assert_eq!(tmp.as_rule(), Rule::funcbody);
     let mut env = HashMap::new();
-    let mut v = pair
-        .into_inner()
+    for i in &args {
+        let offset = (env.len() + 1) * 8;
+        env.insert(i.clone(), offset);
+    }
+    let body = Expr::Block(
+        tmp.into_inner()
+            .into_iter()
+            .map(|x| build_ast_from_expr(x, &mut env))
+            .collect::<Result<_, _>>()?,
+    );
+    // 16の倍数にアラインメントする
+    let mut local_area = env.len();
+    if local_area % 2 == 1 {
+        local_area += 1;
+    }
+    local_area *= 8;
+    Ok(FuncDef {
+        name,
+        args,
+        body,
+        local_area,
+    })
+}
+
+pub fn source_to_ast(source: &str) -> Result<Vec<FuncDef>, Error<Rule>> {
+    let pair = CalcParser::parse(Rule::main, source)?.next().unwrap();
+    let mut pair = pair.into_inner().into_iter().collect::<Vec<_>>();
+    pair.pop();
+    let v = pair
         .into_iter()
-        .map(|x| build_ast_from_expr(x, &mut env))
+        .map(|x| biuld_ast_from_funcdef(x))
         .collect::<Vec<_>>();
-    v.pop();
     v.into_iter().collect::<Result<_, _>>()
 }
 
@@ -428,10 +472,12 @@ impl Expr {
                     out.push(Label("else", crr_label));
                     f_branch.to_assembly_inner(out, label_counter);
                     out.push(Label("end", crr_label));
+                    out.push(Push(Rax)); // TODO
                 } else {
                     out.push(Je("end", crr_label));
                     t_branch.to_assembly_inner(out, label_counter);
                     out.push(Label("end", crr_label));
+                    out.push(Push(Rax)); // TODO
                 }
             }
             Expr::Block(v) => {
@@ -451,6 +497,7 @@ impl Expr {
                 content.to_assembly_inner(out, label_counter);
                 out.push(Jmp("begin", crr_label));
                 out.push(Label("end", crr_label));
+                out.push(Push(Rax)); // TODO
             }
             Expr::For {
                 init,
@@ -476,8 +523,9 @@ impl Expr {
                 }
                 out.push(Jmp("begin", crr_label));
                 out.push(Label("end", crr_label));
+                out.push(Push(Rax)); // TODO
             }
-            Expr::FunCall { name , args } => {
+            Expr::FunCall { name, args } => {
                 for i in args {
                     i.to_assembly_inner(out, label_counter);
                 }
@@ -498,6 +546,32 @@ impl Expr {
         let mut label_counter = 0;
         self.to_assembly_inner(&mut out, &mut label_counter);
         out.push(Operation::Pop(RegisterOrNum::Rax));
+        out
+    }
+}
+
+impl FuncDef {
+    pub fn to_assembly(&self, label_counter: &mut usize) -> Vec<Operation> {
+        use crate::binary::Operation::*;
+        use crate::binary::RegisterOrNum::*;
+        let mut out = vec![];
+        out.push(Func(self.name.clone()));
+        out.push(Push(Rbp));
+        out.push(Mov(Rbp, Rsp));
+        out.push(Sub(Rsp, Num(self.local_area as i32)));
+        // 関数の引数をスタックにコピーする
+        let arg_regi = vec![Rdi, Rsi, Rdx, Rcx, R8, R9];
+        out.push(Mov(Rax, Rbp));
+        let args_num = self.args.len();
+        assert!(args_num <= 6, "関数の引数は6つまででです。");
+        for i in 0..args_num {
+            out.push(Sub(Rax, Num(8)));
+            out.push(Store(Rax, arg_regi[i].clone()));
+        }
+        self.body.to_assembly_inner(&mut out, label_counter);
+        out.push(Mov(Rsp, Rbp));
+        out.push(Pop(Rbp));
+        out.push(Ret);
         out
     }
 }
