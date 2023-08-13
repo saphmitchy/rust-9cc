@@ -80,5 +80,9 @@ assert 3 "f() { return 3; } main() { return f(); }"
 assert 63 "f() { return 3; } g(x) { return x * 9; } main() { a = 4 + f(); return g(a); }"
 assert 7 "f(a, b, c, d, e, f) { a = a * b; x = c * d; return x + a + e / f; }  main() { x = 0; return f(x, 3 + 4, x + 1, 4, 6, 2); }"
 assert 13 "f(n) { if(n <= 1) return 1; else return f(n - 2) + f(n - 1); } main() { return f(6); }"
+assert 5 "main() { a = 5; b = &a; return *b; }"
+assert 10 "main() { a = 5; b = &a; c = &b; d = &c; return test2(a, ***d); }"
+assert 2 "main() { a = 5; ba = 2; return *(&a-8); }" # this is implemention defined
+assert 5 "main() { a = 5; ba = 2; return *(&ba+8); }" # this is implemention defined
 
 echo OK

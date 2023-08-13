@@ -55,6 +55,14 @@ fn build_ast_from_expr(
             let content = inner.next().unwrap();
             match content.as_rule() {
                 Rule::atom => build_ast_from_expr(content, env),
+                Rule::addr => Ok(Expr::Addr(Box::new(build_ast_from_expr(
+                    inner.next().unwrap(),
+                    env,
+                )?))),
+                Rule::deref => Ok(Expr::Dref(Box::new(build_ast_from_expr(
+                    inner.next().unwrap(),
+                    env,
+                )?))),
                 _ => Ok(Expr::BinOp {
                     lhs: Box::new(Expr::Integer(0)),
                     op: get_operator(content.as_rule()),
@@ -110,6 +118,7 @@ fn build_ast_from_expr(
             }
         }
         _ => {
+            println!("{:?}", pair.as_str());
             return Err(Error::new_from_span(
                 ErrorVariant::CustomError {
                     message: String::from("innerError in parsing expr"),

@@ -16,6 +16,8 @@ pub enum Expr {
         name: String,
         args: Vec<Expr>,
     },
+    Addr(Box<Expr>),
+    Dref(Box<Expr>),
 }
 
 pub enum Stmt {
@@ -177,6 +179,15 @@ impl GenAssembly for Expr {
                     out.push(Pop(arg_regi[i].clone()));
                 }
                 out.push(Call(name.clone()));
+                out.push(Push(Rax));
+            }
+            Expr::Addr(e) => {
+                e.gen_lval(out);
+            }
+            Expr::Dref(e) => {
+                e.to_assembly(out, label_counter);
+                out.push(Pop(Rax));
+                out.push(Load(Rax, Rax));
                 out.push(Push(Rax));
             }
         }

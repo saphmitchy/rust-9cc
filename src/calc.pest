@@ -7,7 +7,7 @@ equation = { relational ~ (equalop ~ relational)* }
 relational = {addminus ~ (relop ~ addminus)* }
 addminus = {factor ~ (exprop ~ factor)* }
 factor = { unary ~ (factop ~ unary)* }
-unary = { (addop | subop)? ~ atom }
+unary = { ((addop | subop)? ~ atom) |  (addr | deref) ~ unary}
 atom = { funccall | ident | num | "(" ~ assign ~ ")" }
 num = @{ASCII_DIGIT+}
 ident = @{ !keywords ~ ASCII_ALPHA ~ (ASCII_ALPHA | ASCII_DIGIT)* }
@@ -41,6 +41,8 @@ subop = { "-" }
 mulop = { "*" }
 divop = { "/" }
 comma = _{ "," }
+addr = { "&" }
+deref = { "*" }
 keywords = { "return" | "if" | "else" | "while" | "for" }
 
 WHITESPACE = _{ " " | NEWLINE }
