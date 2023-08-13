@@ -1,10 +1,11 @@
 res = { "return" ~ assign }
 main = { SOI ~ funcdef* ~ EOI}
-stmt = _{ assign ~ semiclon | res ~ semiclon | ifstmt | block | whilestmt | forstmt }
+stmt = _{ expr | res ~ semiclon | ifstmt | block | whilestmt | forstmt }
+expr = { assign ~ semiclon }
 assign = { equation ~ (asnop ~ assign)? }
 equation = { relational ~ (equalop ~ relational)* }
-relational = {expr ~ (relop ~ expr)* }
-expr = {factor ~ (exprop ~ factor)* }
+relational = {addminus ~ (relop ~ addminus)* }
+addminus = {factor ~ (exprop ~ factor)* }
 factor = { unary ~ (factop ~ unary)* }
 unary = { (addop | subop)? ~ atom }
 atom = { funccall | ident | num | "(" ~ assign ~ ")" }
