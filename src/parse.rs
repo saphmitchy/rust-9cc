@@ -128,31 +128,28 @@ fn build_ast_from_stmt(
         Rule::res => {
             let mut inner = pair.into_inner();
             let content = inner.next().unwrap();
-            let expr = Box::new(build_ast_from_expr(content, env)?);
+            let expr = build_ast_from_expr(content, env)?;
             Ok(Stmt::Return { expr })
         }
         Rule::ifstmt => {
             let mut inner = pair.into_inner();
             let cond = build_ast_from_expr(inner.next().unwrap(), env)?;
-            let t_branch = build_ast_from_expr(inner.next().unwrap(), env)?;
+            let t_branch = Box::new(build_ast_from_stmt(inner.next().unwrap(), env)?);
             let f_branch = match inner.next() {
-                Some(e) => Some(build_ast_from_expr(e, env)?),
+                Some(e) => Some(Box::new(build_ast_from_stmt(e, env)?)),
                 None => None,
             };
             Ok(Stmt::If {
-                cond: Box::new(cond),
-                t_branch: Box::new(t_branch),
-                f_branch: Box::new(f_branch),
+                cond,
+                t_branch,
+                f_branch,
             })
         }
         Rule::whilestmt => {
             let mut inner = pair.into_inner();
             let cond = build_ast_from_expr(inner.next().unwrap(), env)?;
-            let content: Expr = build_ast_from_expr(inner.next().unwrap(), env)?;
-            Ok(Stmt::While {
-                cond: Box::new(cond),
-                content: Box::new(content),
-            })
+            let content = Box::new(build_ast_from_stmt(inner.next().unwrap(), env)?);
+            Ok(Stmt::While { cond, content })
         }
         Rule::forstmt => {
             let mut inner = pair.into_inner();
@@ -165,7 +162,7 @@ fn build_ast_from_stmt(
                     None
                 } else {
                     assert_eq!(forcond.next().unwrap().as_rule(), Rule::forsep);
-                    Some(Box::new(build_ast_from_expr(tmp, env)?))
+                    Some(build_ast_from_expr(tmp, env)?)
                 }
             };
             let cond = {
@@ -174,21 +171,21 @@ fn build_ast_from_stmt(
                     None
                 } else {
                     assert_eq!(forcond.next().unwrap().as_rule(), Rule::forsep);
-                    Some(Box::new(build_ast_from_expr(tmp, env)?))
+                    Some(build_ast_from_expr(tmp, env)?)
                 }
             };
             let tail = if let Some(tmp) = forcond.next() {
-                Some(Box::new(build_ast_from_expr(tmp, env)?))
+                Some(build_ast_from_expr(tmp, env)?)
             } else {
                 None
             };
             let tmp = inner.next().unwrap();
-            let content = build_ast_from_expr(tmp, env)?;
+            let content = Box::new(build_ast_from_stmt(tmp, env)?);
             Ok(Stmt::For {
                 init,
                 cond,
                 tail,
-                content: Box::new(content),
+                content,
             })
         }
         Rule::block => Ok(Stmt::Block(
@@ -197,6 +194,12 @@ fn build_ast_from_stmt(
                 .map(|x| build_ast_from_stmt(x, env))
                 .collect::<Result<_, _>>()?,
         )),
+        Rule::expr => {
+            let mut inner = pair.into_inner();
+            let content = inner.next().unwrap();
+            let expr = build_ast_from_expr(content, env)?;
+            Ok(Stmt::Calc { content: expr })
+        }
         _ => {
             return Err(Error::new_from_span(
                 ErrorVariant::CustomError {

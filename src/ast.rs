@@ -23,22 +23,22 @@ pub enum Stmt {
         content: Expr,
     },
     Return {
-        expr: Box<Expr>,
+        expr: Expr,
     },
     If {
-        cond: Box<Expr>,
-        t_branch: Box<Expr>,
-        f_branch: Box<Option<Expr>>,
+        cond: Expr,
+        t_branch: Box<Stmt>,
+        f_branch: Option<Box<Stmt>>,
     },
     While {
-        cond: Box<Expr>,
-        content: Box<Expr>,
+        cond: Expr,
+        content: Box<Stmt>,
     },
     For {
-        init: Option<Box<Expr>>,
-        cond: Option<Box<Expr>>,
-        tail: Option<Box<Expr>>,
-        content: Box<Expr>,
+        init: Option<Expr>,
+        cond: Option<Expr>,
+        tail: Option<Expr>,
+        content: Box<Stmt>,
     },
     Block(Vec<Stmt>),
 }
@@ -205,7 +205,7 @@ impl GenAssembly for Stmt {
                 out.push(Cmp(Rax, Num(0)));
                 let crr_label = *label_counter + 1;
                 *label_counter = *label_counter + 1;
-                if let Some(f_branch) = &**f_branch {
+                if let Some(f_branch) = &*f_branch {
                     out.push(Je("else", crr_label));
                     t_branch.to_assembly(out, label_counter);
                     out.push(Jmp("end", crr_label));
