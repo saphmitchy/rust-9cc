@@ -31,7 +31,7 @@ fn get_operator(rule: Rule) -> Op {
 
 fn build_ast_from_expr(
     pair: pest::iterators::Pair<Rule>,
-    env: &mut HashMap<String, usize>,
+    env: &mut HashMap<String, ValInfo>,
 ) -> Result<Expr, Error<Rule>> {
     match pair.as_rule() {
         Rule::assign | Rule::equation | Rule::relational | Rule::addminus | Rule::factor => {
@@ -77,16 +77,16 @@ fn build_ast_from_expr(
                 Rule::ident => {
                     let name = String::from(content.as_str());
                     match env.get(&name) {
-                        Some(offset) => Ok(Expr::Var {
+                        Some(info) => Ok(Expr::Var {
                             name,
-                            offset: offset.clone(),
+                            info: info.clone(),
                         }),
-                        None => {
-                            let offset = (env.len() + 1) * 8;
-                            env.insert(name.clone(), offset);
-                            let new_var = Expr::Var { name, offset };
-                            Ok(new_var)
-                        }
+                        None => Err(Error::new_from_span(
+                            ErrorVariant::CustomError {
+                                message: String::from(format!("{} is undefined!", name)),
+                            },
+                            content.as_span(),
+                        )),
                     }
                 }
                 Rule::num => Ok(Expr::Integer(content.as_str().parse::<i32>().unwrap())),
@@ -131,7 +131,7 @@ fn build_ast_from_expr(
 
 fn build_ast_from_stmt(
     pair: pest::iterators::Pair<Rule>,
-    env: &mut HashMap<String, usize>,
+    env: &mut HashMap<String, ValInfo>,
 ) -> Result<Stmt, Error<Rule>> {
     match pair.as_rule() {
         Rule::res => {
@@ -209,6 +209,15 @@ fn build_ast_from_stmt(
             let expr = build_ast_from_expr(content, env)?;
             Ok(Stmt::Calc { content: expr })
         }
+        Rule::declare => {
+            let mut inner = pair.into_inner();
+            let type_name = inner.next().unwrap().as_str();
+            let var_name = inner.next().unwrap().as_str();
+            let offset = (env.len() + 1) * 8;
+            let info = ValInfo::new(offset, String::from(type_name));
+            env.insert(String::from(var_name), info);
+            Ok(Stmt::Declare)
+        }
         _ => {
             return Err(Error::new_from_span(
                 ErrorVariant::CustomError {
@@ -222,14 +231,24 @@ fn build_ast_from_stmt(
 
 fn biuld_ast_from_funcdef(pair: pest::iterators::Pair<Rule>) -> Result<FuncDef, Error<Rule>> {
     let mut inner = pair.into_inner();
+    let ret_type = inner.next().unwrap();
+    assert_eq!(ret_type.as_rule(), Rule::typeident);
     let name = inner.next().unwrap();
     assert_eq!(name.as_rule(), Rule::ident);
     let name: String = name.as_str().into();
     let mut tmp = inner.next().unwrap();
     let args = if tmp.as_rule() == Rule::funcindets {
-        let a = tmp.into_inner().map(|x| String::from(x.as_str())).collect();
+        let mut a = tmp.into_inner();
+        let mut info = vec![];
+        while let Some(type_name) = a.next() {
+            let var_name = a.next().unwrap();
+            info.push((
+                String::from(var_name.as_str()),
+                String::from(type_name.as_str()),
+            ));
+        }
         tmp = inner.next().unwrap();
-        a
+        info
     } else {
         vec![]
     };
@@ -237,7 +256,7 @@ fn biuld_ast_from_funcdef(pair: pest::iterators::Pair<Rule>) -> Result<FuncDef, 
     let mut env = HashMap::new();
     for i in &args {
         let offset = (env.len() + 1) * 8;
-        env.insert(i.clone(), offset);
+        env.insert(i.0.clone(), ValInfo::new(offset, i.1.clone()));
     }
     let body = tmp
         .into_inner()

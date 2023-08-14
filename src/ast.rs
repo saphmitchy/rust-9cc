@@ -1,10 +1,23 @@
 use crate::binary::{Operation, RegisterOrNum};
 
+#[derive(Debug, Clone)]
+pub struct ValInfo {
+    offset: usize,
+    #[allow(unused)]
+    type_name: String,
+}
+
+impl ValInfo {
+    pub fn new(offset: usize, type_name: String) -> ValInfo {
+        ValInfo { offset, type_name }
+    }
+}
+
 #[derive(Debug)]
 pub enum Expr {
     Var {
         name: String,
-        offset: usize,
+        info: ValInfo,
     },
     Integer(i32),
     BinOp {
@@ -43,17 +56,23 @@ pub enum Stmt {
         content: Box<Stmt>,
     },
     Block(Vec<Stmt>),
+    Declare,
 }
 
 pub struct FuncDef {
     name: String,
-    args: Vec<String>,
+    args: Vec<(String, String)>,
     body: Vec<Stmt>,
     local_area: usize,
 }
 
 impl FuncDef {
-    pub fn new(name: String, args: Vec<String>, body: Vec<Stmt>, local_area: usize) -> FuncDef {
+    pub fn new(
+        name: String,
+        args: Vec<(String, String)>,
+        body: Vec<Stmt>,
+        local_area: usize,
+    ) -> FuncDef {
         FuncDef {
             name,
             args,
@@ -87,9 +106,9 @@ impl Expr {
         use Operation::*;
         use RegisterOrNum::*;
         match self {
-            Expr::Var { name: _, offset } => {
+            Expr::Var { name: _, info } => {
                 out.push(Mov(Rax, Rbp));
-                out.push(Sub(Rax, Num(offset.clone() as i32)));
+                out.push(Sub(Rax, Num(info.offset.clone() as i32)));
                 out.push(Push(Rax));
             }
             _ => panic!("代入の左辺値が変数ではありません"),
@@ -102,7 +121,7 @@ impl GenAssembly for Expr {
         use Operation::*;
         use RegisterOrNum::*;
         match self {
-            Expr::Var { name: _, offset: _ } => {
+            Expr::Var { name: _, info: _ } => {
                 self.gen_lval(out);
                 out.push(Pop(Rax));
                 out.push(Load(Rax, Rax));
@@ -275,6 +294,7 @@ impl GenAssembly for Stmt {
                 content.to_assembly(out, label_counter);
                 out.push(Pop(Rax));
             }
+            Stmt::Declare => {}
         }
     }
 }
