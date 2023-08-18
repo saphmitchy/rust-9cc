@@ -80,9 +80,15 @@ assert 3 "int f() { return 3; }int  main() { return f(); }"
 assert 63 "int f() { return 3; } int g(int x) { return x * 9; } int main() { int a; a = 4 + f(); return g(a); }"
 assert 7 "int f(int a, int b, int c, int d, int e, int f) { int x; a = a * b; x = c * d; return x + a + e / f; } int main() { int x; x = 0; return f(x, 3 + 4, x + 1, 4, 6, 2); }"
 assert 13 "int f(int n) { if(n <= 1) return 1; else return f(n - 2) + f(n - 1); } int main() { return f(6); }"
-assert 5 "int main() { int a; int b; a = 5; b = &a; return *b; }"
-assert 10 "int main() { int a; int b; int c; int d; a = 5; b = &a; c = &b; d = &c; return test2(a, ***d); }"
+assert 5 "int main() { int a; int* b; a = 5; b = &a; return *b; }"
+assert 10 "int main() { int a; int* b; int** c; int*** d; a = 5; b = &a; c = &b; d = &c; return test2(a, ***d); }"
 assert 2 "int main() {int a; int ba; a = 5; ba = 2; return *(&a-8); }" # this is implemention defined
 assert 5 "int main() { int a; int ba; a = 5; ba = 2; return *(&ba+8); }" # this is implemention defined
+assert 42 "int main() {int a; int *b; a = 3; b = &a; *b = 42; return a; } "
+assert 21 "int main() {int a; int *b; int **c; a = 3; b = &a; c = &b; **c = 21; return *(&a); } "
+assert 5 "int main() { int a; int *b; a = 2; b = &a; **(&b) = 5; return a; } "
+assert 91 "int f(int* a) { return *a; } int main() { int a; a = 91; return f(&a); } "
+assert 3 "int main() {int a; int ba; ba = 2; *(&a-8) = 3; return ba; }" # this is implemention defined
+assert 5 "int main() { int a; int ba; a = 4; *(&ba+8) = 5; return a; }" # this is implemention defined
 
 echo OK

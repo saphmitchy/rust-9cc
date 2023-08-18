@@ -1,4 +1,7 @@
 use crate::ast::*;
+
+use crate::typing::{get_type, Type};
+
 use pest;
 use pest::error::Error;
 use pest::error::ErrorVariant;
@@ -211,10 +214,10 @@ fn build_ast_from_stmt(
         }
         Rule::declare => {
             let mut inner = pair.into_inner();
-            let type_name = inner.next().unwrap().as_str();
+            let type_name = inner.next().unwrap();
             let var_name = inner.next().unwrap().as_str();
             let offset = (env.len() + 1) * 8;
-            let info = ValInfo::new(offset, String::from(type_name));
+            let info = ValInfo::new(offset, build_ast_from_typename(type_name)?);
             env.insert(String::from(var_name), info);
             Ok(Stmt::Declare)
         }
@@ -231,8 +234,7 @@ fn build_ast_from_stmt(
 
 fn biuld_ast_from_funcdef(pair: pest::iterators::Pair<Rule>) -> Result<FuncDef, Error<Rule>> {
     let mut inner = pair.into_inner();
-    let ret_type = inner.next().unwrap();
-    assert_eq!(ret_type.as_rule(), Rule::typeident);
+    let res_type = build_ast_from_typename(inner.next().unwrap())?;
     let name = inner.next().unwrap();
     assert_eq!(name.as_rule(), Rule::ident);
     let name: String = name.as_str().into();
@@ -243,8 +245,8 @@ fn biuld_ast_from_funcdef(pair: pest::iterators::Pair<Rule>) -> Result<FuncDef, 
         while let Some(type_name) = a.next() {
             let var_name = a.next().unwrap();
             info.push((
+                build_ast_from_typename(type_name)?,
                 String::from(var_name.as_str()),
-                String::from(type_name.as_str()),
             ));
         }
         tmp = inner.next().unwrap();
@@ -256,7 +258,7 @@ fn biuld_ast_from_funcdef(pair: pest::iterators::Pair<Rule>) -> Result<FuncDef, 
     let mut env = HashMap::new();
     for i in &args {
         let offset = (env.len() + 1) * 8;
-        env.insert(i.0.clone(), ValInfo::new(offset, i.1.clone()));
+        env.insert(i.1.clone(), ValInfo::new(offset, i.0.clone()));
     }
     let body = tmp
         .into_inner()
@@ -269,7 +271,19 @@ fn biuld_ast_from_funcdef(pair: pest::iterators::Pair<Rule>) -> Result<FuncDef, 
         local_area += 1;
     }
     local_area *= 8;
-    Ok(FuncDef::new(name, args, body, local_area))
+    Ok(FuncDef::new(name, res_type, args, body, local_area))
+}
+
+fn build_ast_from_typename(pair: pest::iterators::Pair<Rule>) -> Result<Type, Error<Rule>> {
+    assert!(pair.as_rule() == Rule::typename);
+    let mut inner = pair.into_inner();
+    let base = inner.next().unwrap();
+    assert!(base.as_rule() == Rule::typeident);
+    let mut base = get_type(base.as_str());
+    while inner.next().is_some() {
+        base = Type::Ptr(Box::new(base));   
+    }
+    Ok(base)
 }
 
 pub fn source_to_ast(source: &str) -> Result<Vec<FuncDef>, Error<Rule>> {

@@ -1,14 +1,15 @@
 use crate::binary::{Operation, RegisterOrNum};
+use crate::typing::Type;
 
 #[derive(Debug, Clone)]
 pub struct ValInfo {
     offset: usize,
     #[allow(unused)]
-    type_name: String,
+    type_name: Type,
 }
 
 impl ValInfo {
-    pub fn new(offset: usize, type_name: String) -> ValInfo {
+    pub fn new(offset: usize, type_name: Type) -> ValInfo {
         ValInfo { offset, type_name }
     }
 }
@@ -61,7 +62,9 @@ pub enum Stmt {
 
 pub struct FuncDef {
     name: String,
-    args: Vec<(String, String)>,
+    #[allow(unused)]
+    res_type: Type,
+    args: Vec<(Type, String)>,
     body: Vec<Stmt>,
     local_area: usize,
 }
@@ -69,12 +72,14 @@ pub struct FuncDef {
 impl FuncDef {
     pub fn new(
         name: String,
-        args: Vec<(String, String)>,
+        res_type: Type,
+        args: Vec<(Type, String)>,
         body: Vec<Stmt>,
         local_area: usize,
     ) -> FuncDef {
         FuncDef {
             name,
+            res_type,
             args,
             body,
             local_area,
@@ -102,7 +107,7 @@ pub trait GenAssembly {
 }
 
 impl Expr {
-    fn gen_lval(&self, out: &mut Vec<Operation>) -> () {
+    fn gen_lval(&self, out: &mut Vec<Operation>, label_counter: &mut usize) -> () {
         use Operation::*;
         use RegisterOrNum::*;
         match self {
@@ -110,6 +115,9 @@ impl Expr {
                 out.push(Mov(Rax, Rbp));
                 out.push(Sub(Rax, Num(info.offset.clone() as i32)));
                 out.push(Push(Rax));
+            }
+            Expr::Dref(v) => {
+                v.to_assembly(out, label_counter);
             }
             _ => panic!("代入の左辺値が変数ではありません"),
         }
@@ -122,7 +130,7 @@ impl GenAssembly for Expr {
         use RegisterOrNum::*;
         match self {
             Expr::Var { name: _, info: _ } => {
-                self.gen_lval(out);
+                self.gen_lval(out, label_counter);
                 out.push(Pop(Rax));
                 out.push(Load(Rax, Rax));
                 out.push(Push(Rax));
@@ -132,7 +140,7 @@ impl GenAssembly for Expr {
             }
             Expr::BinOp { lhs, op, rhs } => {
                 if *op == Op::Assign {
-                    lhs.gen_lval(out);
+                    lhs.gen_lval(out, label_counter);
                     rhs.to_assembly(out, label_counter);
                     out.push(Pop(Rdi));
                     out.push(Pop(Rax));
@@ -201,7 +209,7 @@ impl GenAssembly for Expr {
                 out.push(Push(Rax));
             }
             Expr::Addr(e) => {
-                e.gen_lval(out);
+                e.gen_lval(out, label_counter);
             }
             Expr::Dref(e) => {
                 e.to_assembly(out, label_counter);
